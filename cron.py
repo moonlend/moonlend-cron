@@ -10,10 +10,9 @@ import os
 load_dotenv()
 
 data = json.load(open('data.json'))
-PASSWORD = os.getenv('PASSWORD')
+PASSWORD = os.getenv('MONGODBPASSWORD')
 client = pymongo.MongoClient(f"mongodb+srv://ninja:{PASSWORD}@oracle-atlas.2mwhyc5.mongodb.net/?retryWrites=true&w=majority", server_api=ServerApi('1'))
 
-result = client["sample_airbnb"]["listingsAndReviews"].find()
 
 def moonsama_marketplace_price(contract, link):
 
