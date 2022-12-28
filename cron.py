@@ -9,17 +9,17 @@ import os
 
 load_dotenv()
 
-data = json.load(open('data.json'))
+data = requests.get("https://raw.githubusercontent.com/moonlend/moonlend-nft-list/master/nft-list.json").json()
 PASSWORD = os.getenv('MONGODBPASSWORD')
 client = pymongo.MongoClient(f"mongodb+srv://ninja:{PASSWORD}@oracle-atlas.2mwhyc5.mongodb.net/?retryWrites=true&w=majority", server_api=ServerApi('1'))
 
 
-def moonsama_marketplace_price(contract, link):
+def moonsama_marketplace_price(address, link):
 
 	query = f"""{{ 
 		latestOrders: 
 			orders( where: {{
-				active: true, buyAsset: \"0x0000000000000000000000000000000000000000-0\", sellAsset_starts_with: \"{contract.lower()}\"
+				active: true, buyAsset: \"0x0000000000000000000000000000000000000000-0\", sellAsset_starts_with: \"{address}\"
 				}} 
 			orderBy: pricePerUnit orderDirection: asc skip: 0 first: 1 ) {{ 
 				id orderType createdAt active pricePerUnit 
@@ -31,9 +31,9 @@ def moonsama_marketplace_price(contract, link):
 	return floor
 
 
-def moonbeans_price(contract, link):
+def moonbeans_price(address, link):
 	query = f"""{{ 
-		allAsks(condition: {{collectionId: \"{contract}\"}}, 
+		allAsks(condition: {{collectionId: \"{address}\"}}, 
 		orderBy: VALUE_ASC, first: 1) {{ 
 			nodes {{ 
 				id timestamp value __typename }} 
@@ -56,13 +56,14 @@ def raregems_price(link):
 
 def update_db():
 
-    for collection in data["collections_supported"]:
+    for collection in data["tokens"]:
+        collection["address"] = collection["address"].lower()
         prices = []
 
         for marketplace in collection["marketplaces"]:
             if marketplace["name"] == "Moonsama Marketplace":
                 try:
-                    price = moonsama_marketplace_price(collection["contract"], marketplace["link"])
+                    price = moonsama_marketplace_price(collection["address"], marketplace["link"])
                     obj = {
                         "timestamp" : int(time.time()),
                         "marketplace" : marketplace["name"],
@@ -74,7 +75,7 @@ def update_db():
 
             elif marketplace["name"] == "Moonbeans":
                 try:
-                    price = moonbeans_price(collection["contract"], marketplace["link"])
+                    price = moonbeans_price(collection["address"], marketplace["link"])
                     obj = {
                         "timestamp" : int(time.time()),
                         "marketplace" : marketplace["name"],
@@ -98,7 +99,7 @@ def update_db():
         if len(prices) == 0:
             continue
         
-        table = client["nft_collections_moonriver"][collection["contract"]]
+        table = client["nft_collections_moonriver"][collection["address"]]
         table.insert_many(prices)
         table.delete_many({"timestamp": { "$lt": int(time.time()) - 30*24*3600 }}) #delete data that is older than a month
 
