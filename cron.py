@@ -19,7 +19,7 @@ def moonsama_marketplace_price(address, link):
 	query = f"""{{ 
 		latestOrders: 
 			orders( where: {{
-				active: true, buyAsset: \"0x0000000000000000000000000000000000000000-0\", sellAsset_starts_with: \"{address}\"
+				active: true, buyAsset: \"0x0000000000000000000000000000000000000000-0\", sellAsset_starts_with: \"{address.lower()}\"
 				}} 
 			orderBy: pricePerUnit orderDirection: asc skip: 0 first: 1 ) {{ 
 				id orderType createdAt active pricePerUnit 
