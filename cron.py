@@ -27,7 +27,7 @@ def moonsama_marketplace_price(address, link):
 			}}"""
 	
 	resp = (requests.post(link, json={"query": query})).json()
-	floor = int(resp["data"]["latestOrders"][0]["pricePerUnit"])
+	floor = float(resp["data"]["latestOrders"][0]["pricePerUnit"]) / 10e35
 	return floor
 
 
@@ -42,7 +42,7 @@ def moonbeans_price(address, link):
 			}}"""
 	
 	resp = (requests.post(link, json={"query": query})).json()
-	floor = int(resp["data"]["allAsks"]["nodes"][0]["value"])
+	floor = float(resp["data"]["allAsks"]["nodes"][0]["value"]) / 10e18
 	return floor
 
 
@@ -50,14 +50,16 @@ def raregems_price(link):
 	resp = requests.get(link)
 	soup = bs(resp.content, features="html.parser")
 	parent_element = soup.find("div", text="Min Price").parent
-	floor = int(parent_element.find("img").next_sibling.strip()) * 10**18
+	floor = float(parent_element.find("img").next_sibling.strip()) 
 	return floor
 
 
 def update_db():
 
     for collection in data["tokens"]:
-        collection["address"] = collection["address"].lower()
+        if collection["chainId"] != 1285:
+            continue
+
         prices = []
 
         for marketplace in collection["marketplaces"]:
@@ -66,8 +68,9 @@ def update_db():
                     price = moonsama_marketplace_price(collection["address"], marketplace["link"])
                     obj = {
                         "timestamp" : int(time.time()),
+						"name": collection["name"],
                         "marketplace" : marketplace["name"],
-                        "price" : str(price)
+                        "price" : price 
                     }
                     prices.append(obj)
                 except:
@@ -78,8 +81,9 @@ def update_db():
                     price = moonbeans_price(collection["address"], marketplace["link"])
                     obj = {
                         "timestamp" : int(time.time()),
+						"name": collection["name"],
                         "marketplace" : marketplace["name"],
-                        "price" : str(price)
+                        "price" : price 
                     }
                     prices.append(obj)
                 except:
@@ -89,8 +93,9 @@ def update_db():
                     price = raregems_price(marketplace["link"])
                     obj = {
                         "timestamp" : int(time.time()),
+						"name": collection["name"],
                         "marketplace" : marketplace["name"],
-                        "price" : str(price)
+                        "price" : price
                     }
                     prices.append(obj)
                 except:
@@ -99,8 +104,9 @@ def update_db():
         if len(prices) == 0:
             continue
         
-        table = client["nft_collections_moonriver"][collection["address"]]
+        table = client["nft_collections_moonriver"][collection["address"].lower()]
         table.insert_many(prices)
         table.delete_many({"timestamp": { "$lt": int(time.time()) - 30*24*3600 }}) #delete data that is older than a month
+
 
 update_db()
